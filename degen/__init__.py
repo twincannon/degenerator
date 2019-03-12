@@ -3,20 +3,50 @@
 import sys
 import subprocess
 import os
-
-print('-----------------------------------------')
-print('           CLIP DEGENERATOR')
-print('-----------------------------------------')
-
-# check for ffmpeg in path
-env = os.environ['PATH']
-if env.find('ffmpeg') == -1:
-	print('error: ffmpeg not found in path, aborting')
-	quit()
-
+from argparse import ArgumentParser
 
 #extra credit - upload to youtube
+#todo - https://trac.ffmpeg.org/wiki/Seeking
 
+def create_parser():
+	parser = ArgumentParser(description = 'Usage: supply at least 1 argument '
+		'of a video file in order to start processing. The first two integer '
+		'arguments found will be used as the clip start/end time from the input '
+		'video, though these parameters can also be set at runtime.'
+	)
+	parser.add_argument(
+		'file',
+		type = str,
+		help = 'Input video file to process'
+	)
+	parser.add_argument(
+		'start',
+		type = int,
+		nargs = '?',
+		help = 'Start time in video to clip (optional)'
+	)
+	parser.add_argument(
+		'end',
+		type = int,
+		nargs = '?',
+		help = 'End time in video to clip (optional)'
+	)
+	parser.add_argument(
+		'-an',
+		'-na',
+		'-noaudio',
+		action='store_true',
+		help = 'Disable audio in output video'
+	)
+	parser.add_argument(
+		'-nc',
+		'-nocompress',
+		action='store_true',
+		help = 'Disable h264 video compression pass'
+	)
+	return parser
+
+parser = create_parser()
 
 def getLengthInSeconds(filename):
 	result = subprocess.Popen(['ffprobe', filename], stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
@@ -28,10 +58,10 @@ def getLengthInSeconds(filename):
 	timeList = fullDurationStr.split("Duration: ")[1].split(".")
 	return sum(x * int(t) for x, t in zip([3600, 60, 1], timeList[0].split(":"))) + (float(timeList[1]) * 0.01)
 
-def getAvailableFilename():
+def getAvailableFilename(fileExt):
 	num = 0
 	fileStr = 'output'
-	while(os.path.isfile('./' + fileStr + '.' + outFileExt) == True): # loop until we find one that doesn't exist
+	while(os.path.isfile('./' + fileStr + '.' + fileExt) == True): # loop until we find one that doesn't exist
 		num += 1
 		fileStr = 'output' + str(num)
 	return fileStr
@@ -46,18 +76,26 @@ def processVideo(args):
 #print(os.getcwd()) #current working dir
 #import pdb; pdb.set_trace() #for debugging
 def main():
+	print('-----------------------------------------')
+	print('           CLIP DEGENERATOR')
+	print('-----------------------------------------')
+
+	# check for ffmpeg in path
+	env = os.environ['PATH']
+	if env.find('ffmpeg') == -1:
+		print('error: ffmpeg not found in path, aborting')
+		quit()
+
+	# TODO: load these from the parser instead
 	args_noaudio = ('-an', '-na', '-noaudio')
 	args_nocompress = ('-nc', '-nocompress')
 
 	# check if there's any arguments
 	if len(sys.argv) < 2:
-		print('Usage: supply at least 1 argument of a video file in order to start processing.\n')
-		print('The first two integer arguments found will be used as the clip start/end time')
-		print('from the input video, though these parameters can also be set at runtime.\n')
-		print('Other parameters include:')
-		print('  ', ', '.join(args_noaudio), '- disable audio in clip')
-		print('  ', ', '.join(args_nocompress), '- disable video compression in clip')
+		parser.print_help()
 		quit()
+
+	args = parser.parse_args()
 
 	# find filename from args
 	filename = next((i for i in sys.argv if any(ext in i for ext in ['.mp4', '.avi'])), 'none')
@@ -65,13 +103,15 @@ def main():
 		print('error: no video file specified in arguments, aborting')
 		quit()
 
+	if args.file == None or os.path.isfile(args.file) == False:
+		print('error: file not found')
+		quit()
+
 	outFileExt = 'mp4' # always export to .mp4, but as a reminder, use filename[-3:] to get the extension from filename var
 	inVideoLength = getLengthInSeconds(filename);
 
-	# find first 2 digits passed in as arguments and set them as start and end times
-	arg_iter = iter(sys.argv)
-	start = next((i for i in arg_iter if i.isdigit()), "")
-	end = next((i for i in arg_iter if i.isdigit()), "")
+	start = "" if args.start == None else args.start
+	end = "" if args.end == None else args.end
 
 	# prompt for a filename for the output video
 	name = ""
@@ -80,7 +120,7 @@ def main():
 		name = input()
 		
 		if name == "":
-			name = getAvailableFilename()
+			name = getAvailableFilename(outFileExt)
 			print('warning: no name entered, defaulting to "' + name + '"')
 		else:
 			# check if name has any invalid filename characters
