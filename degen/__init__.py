@@ -37,19 +37,19 @@ def create_parser():
 		'-na',
 		'-an',
 		'-noaudio',
-		action='store_true',
+		action = 'store_true',
 		help = 'Disable audio in output video'
 	)
 	parser.add_argument(
 		'-nc',
 		'-nocompress',
-		action='store_true',
+		action = 'store_true',
 		help = 'Disable h264 video compression pass'
 	)
 	parser.add_argument(
 		'-auto',
 		'-a',
-		action='store_true',
+		action = 'store_true',
 		help = "Automatic mode (look for and process clips based on filename, i.e. "
 			   "'degen-11-20-vidname.mp4' would try to find and process 'vidname.mp4' "
 			   "with a start time of 11 and end time of 20, and output 'vidname_auto.mp4')"
@@ -69,6 +69,7 @@ def getLengthInSeconds(filename):
 
 # finds the first available filename given desired name and extension, appending a number at end of name until one doesn't exist
 def getAvailableFilename(filename, fileExt):
+	# todo: make it so if fileExt starts with a period, it strips it
 	num = 0
 	fileStr = filename
 	while(os.path.isfile('./' + fileStr + '.' + fileExt) == True): # loop until we find one that doesn't exist
@@ -87,6 +88,13 @@ def isValidFilename(filename):
 			return False, char
 	return True, '_'
 
+_arnoldQuotes = [
+	'HASTA LA VISTA, CLIPPY',
+	'I NEED YOUR CLIPS, YOUR BOOTS, AND YOUR MOTORCYCLE',
+	'WHAT IS BEST IN LIFE? TO TAKE YOUR CLIPS, SEE THEM PROCESSED BEFORE '
+		'YOU, AND HEAR THE DEGENERATION OF YOUR VIDEOS',
+	'I HOPE YOU HAVE ENOUGH ROOM FOR MY CLIP BECAUSE I\'M GOING TO RAM IT INTO YOUR HARD DRIVE',
+	]
 
 #print(os.getcwd()) #current working dir
 #import pdb; pdb.set_trace() #for debugging
@@ -261,6 +269,7 @@ def __autoMode(args, ext):
 	for file in videoFiles:
 		if file.startswith('degen-'):
 			split = file.split('-')
+			# todo: consider accounting (and test what happens) for filenames like "degen-10-12.mp4" or "degen-10-12-.mp4"
 			if len(split) >= 4 and split[1].isdigit() and split[2].isdigit():
 				dashPositions = [pos for pos, char in enumerate(file) if char == '-'] # get indices of all dash characters in filename
 				sanitizedFile = file[dashPositions[2] + 1:] # filename stripped of auto mode text (using this instead of split[3] allows for hyphens in the filename)
