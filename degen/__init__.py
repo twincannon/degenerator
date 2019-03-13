@@ -4,6 +4,7 @@ import sys
 import subprocess
 import os
 from argparse import ArgumentParser
+import time
 
 #extra credit - upload to youtube
 #todo - https://trac.ffmpeg.org/wiki/Seeking
@@ -32,8 +33,8 @@ def create_parser():
 		help = 'End time in video to clip (optional)'
 	)
 	parser.add_argument(
-		'-an',
 		'-na',
+		'-an',
 		'-noaudio',
 		action='store_true',
 		help = 'Disable audio in output video'
@@ -45,8 +46,6 @@ def create_parser():
 		help = 'Disable h264 video compression pass'
 	)
 	return parser
-
-parser = create_parser()
 
 def getLengthInSeconds(filename):
 	result = subprocess.Popen(['ffprobe', filename], stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
@@ -75,10 +74,13 @@ def processVideo(args):
 
 #print(os.getcwd()) #current working dir
 #import pdb; pdb.set_trace() #for debugging
+
 def main():
 	print('-----------------------------------------')
 	print('           CLIP DEGENERATOR')
 	print('-----------------------------------------')
+	
+	parser = create_parser()
 
 	# check for ffmpeg in path
 	env = os.environ['PATH']
@@ -86,25 +88,22 @@ def main():
 		print('error: ffmpeg not found in path, aborting')
 		quit()
 
-	# TODO: load these from the parser instead
-	args_noaudio = ('-an', '-na', '-noaudio')
-	args_nocompress = ('-nc', '-nocompress')
-
 	# check if there's any arguments
-	if len(sys.argv) < 2:
+	if len(sys.argv) < 2: # first arg is always the execution path
 		parser.print_help()
 		quit()
 
 	args = parser.parse_args()
 
 	# find filename from args
-	filename = next((i for i in sys.argv if any(ext in i for ext in ['.mp4', '.avi'])), 'none')
-	if(filename == 'none'):
-		print('error: no video file specified in arguments, aborting')
-		quit()
-
 	if args.file == None or os.path.isfile(args.file) == False:
 		print('error: file not found')
+		quit()
+
+	filename = args.file
+
+	if not(any(i for i in [(filename[-4:] == str) for str in ['.mp4', '.avi']] if i != -1)):
+		print('error: file is not a valid video format, aborting')
 		quit()
 
 	outFileExt = 'mp4' # always export to .mp4, but as a reminder, use filename[-3:] to get the extension from filename var
@@ -163,15 +162,17 @@ def main():
 	print('\nprocessing clip "' + filename + '" as "'+name+'.'+outFileExt+'", start:', start, 'end:', end, 'duration:', duration) 
 
 	# check if the user included arguments to disable audio or compression
-	includeaudio = not bool(set(sys.argv).intersection(args_noaudio))
-	compressvideo = not bool(set(sys.argv).intersection(args_nocompress))
+	includeaudio = not args.na
+	compressvideo = not args.nc
 
 	# build our list of arguments to send to ffmpeg
 	input_args = ['ffmpeg', '-hide_banner', '-loglevel', 'warning', '-ss', str(start), '-i', filename]
-	vcodec_args = ['-c:v', 'h264', '-preset', 'slow', '-crf', '22'] if compressvideo else ['-c', 'copy', '-copyinkf'] #vcodec_args = ['-vcodec', 'h264']
+	vcodec_args = ['-c:v', 'h264', '-preset', 'fast', '-crf', '22'] if compressvideo else ['-c', 'copy', '-copyinkf'] #vcodec_args = ['-vcodec', 'h264']
 	acodec_args = ['-c:a', 'copy'] if includeaudio else ['-an']
 	output_args = ['-t', str(duration), name+'.'+outFileExt]
 
+	starttime = time.time()
 	exitcode = processVideo(input_args + vcodec_args + acodec_args + output_args)
+	timedelta = time.time() - starttime
 
-	print('finished processing video "'+name+'" with exit code', exitcode)
+	print('finished processing video "'+name+'" with exit code', exitcode, 'in %.3f'%(timedelta)+'s')
