@@ -76,9 +76,48 @@ def processVideo(args):
 #import pdb; pdb.set_trace() #for debugging
 
 def main():
-	print('-----------------------------------------')
-	print('           CLIP DEGENERATOR')
-	print('-----------------------------------------')
+	print(
+	'|---------------------------------------------------------------|\n'
+	'|                  .+/  `..:-`-: `-   +```-.       :hhyymMs`    |\n'
+	'|                 `/yy::+yo:+:-. .-` .y./o.  ``       `:sdy:    |\n'
+	'|                 .oyhds++:` `../yhs/shshmo//+o///:  `.--o+/-`  |\n'
+	'|                 -ymMd/-./yyohNMMMMMMMMMMMMMMMMMMMMNy/`        |\n'
+	'|                :hmmd/. sddyydmNMMMMMMMMMMMMMMMMMMMMMmo`       |\n'
+	'|                +mdy:   oooyyhdNMMMMMMMMMMMMMMMMMMMMMMd-       |\n'
+	'|                ``     -::.:shdmmhmMMMMMMMMMMMMMMMMMMNds       |\n'
+	'|  .sdo/hhs            -.:/:sdmmmmmmNNNNNNNNNNNmdmmddNNdy.      |\n'
+	'| -/hmo.yMm            `-:.`::..............--...........`      |\n'
+	'| /odd+.yMm             ``  `              `--                  |\n'
+	'| ssdd+-hMm             `   ``````....    .oo/`  `              |\n'
+	'| dhmd+-hMm             :`  .--///ooo+    yNNmo`./              |\n'
+	'| dMMd/:mMm      ``     o.             `+mMMMMMdo-`     ..      |\n'
+	'| dNMd/-dMm      .-     -/`      ....::+mMNMMMMMNho///:::.      |\n'
+	'| dNMd+-dMm      `.     .-.:////oyyyyhhods+osyyoydhdddhhh-      |\n'
+	'| hNNh/-hNd       .o/   . .shhhhddddddNh/-`.-+/.`+dhshho+.      |\n'
+	'| yMdo:-hNh       `/hh/    ://++/+ydMMMMmdhhyosmNMMMm:....      |\n'
+	'| yMNh/-dNh        .sdh-   :/--//omNmhoo/:+osyhyo:/mMm/`.-      |\n'
+	'| smmNyomNh         ..-`  -s+:.`odNNd.`/oydmmNNmmho-dMy.-.      |\n'
+	'|`:yyho`sMNh               o+:. .+ymNNdyyyyyyyoos/+NNy/`     .+h|\n'
+	'|`:/oyo :MNh               -:::-``::/yyyyyyymMMmddy+/`    `:yhy:|\n'
+	'| : :o/ :mdy`             `.-``  `- ::osyhyysshhyyd+```so    .+-|\n'
+	'| - ./: -ddh/:`           :oso/.       -///oooooo/: -::oy    .os|\n'
+	'| ` .:: -mdo-o/::`        -:osyo-`      ----/:---- :o+-+y    `-:|\n'
+	'| . .:: :MNy:`+sy-`.       :/+sos+.....:::::::::-. s/o/oy`     `|\n'
+	'|`  .:. `+h-+/mNds:     -` .://+yyo////ohhhhhdhs+//+////s/.     |\n'
+	'|`  `` ./+h`+yNmdm+     /`  -///osoo////+yyyyyyo///////sy+-`-.  |\n'
+	'|       .yNMMMd/`/.:hh.+  `` `-://+ssys//sssssso//////syyso- `.`|\n'
+	'|       -hhmMM+/-dmmMMmm./yy+-``.::/+yys/s+///////////yyoydo`   |\n'
+	'|       .shdMMdmmMMMMMMMmNMNNmo.--``/ss/////////::///+yhyhNd+`  |\n'
+	'|       .o+/oh. -hy/` /ddddNmmNMMMMm. ://.-:::-  .+dmmmMMMMMMMd.|\n'
+	'|              .:.         s/shhhdmhs  -:` .-.  `ohhMMMMMMMMMMNy|\n'
+	'|             -hm/-://///:/:`   `:/-..        `./hdsMMMMMMMMMMMm|\n'
+	'|             ys+`/sohNmmNMm+`     -ys:..`  `.:shmmNMMMMMMMMMMMm|\n'
+	'|             +.  `.`:+:+oo+/`   .ohMNdhs++/+ohmNNMMMMMMMMMMMMMN|\n'
+	'|                                :MMMMMMMMMmmMMMMMMMMMMMMMMMMMMM|\n'
+	'|---------------------------------------------------------------|\n'
+	'|            T H E   C L I P   D E G E N E R A T O R            |\n'
+	'|---------------------------------------------------------------|\n'
+	)
 	
 	parser = create_parser()
 
