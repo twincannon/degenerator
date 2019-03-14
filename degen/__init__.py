@@ -1,10 +1,11 @@
 #!/usr/bin/python
-
 import sys
 import subprocess
 import os
-from argparse import ArgumentParser
 import time
+import random
+from argparse import ArgumentParser
+
 
 #extra credit - upload to youtube
 #todo - https://trac.ffmpeg.org/wiki/Seeking
@@ -108,14 +109,24 @@ def is_valid_filename(filename):
 	return True, '_'
 
 
-_arnoldQuotes = [
-	'HASTA LA VISTA, CLIPPY',
-	'I NEED YOUR CLIPS, YOUR BOOTS, AND YOUR MOTORCYCLE',
-	'WHAT IS BEST IN LIFE? TO TAKE YOUR CLIPS, SEE THEM PROCESSED BEFORE '
-		'YOU, AND HEAR THE DEGENERATION OF YOUR VIDEOS',
-	'I HOPE YOU HAVE ENOUGH ROOM FOR MY CLIP BECAUSE I\'M GOING TO RAM IT '
-		'INTO YOUR HARD DRIVE',
-
+_arnold_quotes = [
+	"HASTA LA VISTA, CLIPPY",
+	"I NEED YOUR CLIPS, YOUR BOOTS, AND YOUR MOTORCYCLE",
+	"WHAT IS BEST IN LIFE? TO TAKE YOUR CLIPS, SEE THEM PROCESSED BEFORE "
+		"YOU, AND HEAR THE DEGENERATION OF YOUR VIDEOS",
+	"I HOPE YOU HAVE ENOUGH ROOM FOR MY CLIP BECAUSE I'M GOING TO RAM IT "
+		"INTO YOUR HARD DRIVE",
+	"WHO IS YOUR CLIPPY, AND WHAT DOES HE DO"
+	"'YOU WERE GONNA PROCESS THAT CLIP?' - OF COURSE, I'M THE DEGENERATOR"
+	"COME WITH ME IF YOU WANT TO CLIP"
+	"DILLON! YOU SON OF A CLIP"
+	"GET TO THE CLIPPA",
+	"YOUR CLIP IS DEGENERATED",
+	"GET YOUR CLIP TO MARS",
+	"I'M A CLIP YOU IDIOT",
+	"IF IT DEGENS, WE CAN CLIP IT",
+	"CLIP IT, CLIP IT NOW!",
+	"I'LL BE CLIP",
 ]
 
 #print(os.getcwd()) #current working dir
@@ -259,6 +270,8 @@ def __process_video(file, ext, start, end, args, out_filename):
 	"""Runs ffmpeg subprocess with args on given file"""
 	duration = float(end) - float(start)
 
+	full_filename = out_filename + '.' + ext
+
 	# Build our list of arguments to send to ffmpeg
 	input_args = ['ffmpeg', '-hide_banner','-loglevel', 'error',
 		'-ss', str(start), '-i', file]
@@ -266,11 +279,11 @@ def __process_video(file, ext, start, end, args, out_filename):
 	nocompress_args = ['-c', 'copy', '-copyinkf']
 	vcodec_args = nocompress_args if args.nocompress else compress_args
 	acodec_args = ['-an'] if args.noaudio else ['-c:a', 'copy']
-	output_args = ['-t', str(duration), out_filename+'.'+ext]
+	output_args = ['-t', str(duration), full_filename]
 	ffmpeg_args = input_args + vcodec_args + acodec_args + output_args
 
-	print('processing clip "' + file + '" as "'+out_filename+'.'+ext+'",'
-		  'start:', start, 'end:', end, 'duration:', duration)
+	print('processing clip "{}" as "{}", start: {} end: {} '
+		  'duration: {}'.format(file, full_filename, start, end, duration))
 
 	starttime = time.time()
 	process = subprocess.Popen(ffmpeg_args, stdout=subprocess.PIPE)
@@ -278,8 +291,9 @@ def __process_video(file, ext, start, end, args, out_filename):
 	exit_code = process.wait()
 	time_delta = time.time() - starttime
 
-	print('finished processing video "'+out_filename+'" with '
-		  'exit code', exit_code, 'in %.3f'%(time_delta)+'s')
+	print('finished processing video "{}" with exit code {} '
+		  'in {:.3f}s'.format(full_filename, exit_code, time_delta))
+	print(random.choice(_arnold_quotes))
 	return
 
 
@@ -295,17 +309,16 @@ def __auto_mode(args, ext):
 	files_to_process = {}
 	for file in video_files:
 		if file.startswith('degen-'):
-			split = file.split('-')
-			# TODO: consider accounting (and test what happens) for filenames
-			# like "degen-10-12.mp4" or "degen-10-12-.mp4"
+			# Split file str into parts and account for weird dash usage
+			split = [str for str  in file.split('-') if len(str) > 0]
 			if len(split) >= 4 and split[1].isdigit() and split[2].isdigit():
 				# Get indices of all dash characters in filename
 				dash_pos = [pos for pos, char in enumerate(file) if char == '-']
 				# Filename stripped of auto mode text (using this instead
 				# of split[3] allows for hyphens in the filename)
 				sanitized_file = file[dash_pos[2] + 1:]
-				print('found file: ' + sanitized_file + ', '
-					  'start: ' + split[1] + ', end: ' + split[2])
+				print('found file: {}, start: {}, '
+					  'end: {}'.format(sanitized_file, split[1], split[2]))
 				files_to_process[file] = split[1], split[2], sanitized_file
 
 	for file, params in files_to_process.items():
