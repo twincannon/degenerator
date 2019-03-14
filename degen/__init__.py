@@ -9,11 +9,13 @@ import time
 #extra credit - upload to youtube
 #todo - https://trac.ffmpeg.org/wiki/Seeking
 
+
 def create_parser():
+	"""Setup and return our ArgumentParser"""
 	parser = ArgumentParser(description = 'Usage: supply at least 1 argument '
 		'of a video file in order to start processing. The first two integer '
-		'arguments found will be used as the clip start/end time from the input '
-		'video, though these parameters can also be set at runtime.'
+		'arguments found will be used as the clip start/end time from the '
+		'input video, though these parameters can also be set at runtime.'
 	)
 	parser.add_argument(
 		'file',
@@ -34,15 +36,15 @@ def create_parser():
 		help = 'End time in video to clip (optional)'
 	)
 	parser.add_argument(
-		'-na',
-		'-an',
 		'-noaudio',
+		'-na',
+		'-an', # to mirror ffmpeg's parameter
 		action = 'store_true',
 		help = 'Disable audio in output video'
 	)
 	parser.add_argument(
-		'-nc',
 		'-nocompress',
+		'-nc',
 		action = 'store_true',
 		help = 'Disable h264 video compression pass'
 	)
@@ -50,54 +52,75 @@ def create_parser():
 		'-auto',
 		'-a',
 		action = 'store_true',
-		help = "Automatic mode (look for and process clips based on filename, i.e. "
-			   "'degen-11-20-vidname.mp4' would try to find and process 'vidname.mp4' "
-			   "with a start time of 11 and end time of 20, and output 'vidname_auto.mp4')"
+		help = "Automatic mode (look for and process clips based on filename, "
+			   "i.e. 'degen-11-20-vidname.mp4' would try to find and process "
+			   "'vidname.mp4' with a start time of 11 and end time of 20, and "
+			   "output 'vidname_auto.mp4')"
 	)
 	return parser
 
-# use ffprobe subprocess to find length of given video
-def getLengthInSeconds(filename):
-	result = subprocess.Popen(['ffprobe', filename], stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
-	linesFound = [x for x in result.stdout.readlines() if "Duration".encode() in x] #list comprehension - equiv to: for x in readlines, if duration in x, return x (i.e. add to return list)
+
+def get_length_in_seconds(filename):
+	"""Run ffprobe subprocess and return length of video file"""
+	result = subprocess.Popen(['ffprobe', filename],
+		stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+	# Isolate "Duration" line from other lines
+	duration_line = [x for x in result.stdout.readlines() if "Duration".encode() in x]
 	result.kill()
-	if len(linesFound) == 0:
-		return #print something? does duration matter enough to halt?
-	fullDurationStr = linesFound[0].decode().split(",")[0] #isolate "Duration" text section from other text
-	timeList = fullDurationStr.split("Duration: ")[1].split(".")
-	return sum(x * int(t) for x, t in zip([3600, 60, 1], timeList[0].split(":"))) + (float(timeList[1]) * 0.01)
+	if len(duration_line) == 0:
+		print("error: couldn't get duration (yet we got this far somehow?)")
+		return
+	# Isolate "Duration" text segment from rest of line
+	duration_text = duration_line[0].decode().split(",")[0]
+	time = duration_text.split("Duration: ")[1].split(".") # 00:00:00 format
+	seconds = sum(x * int(t) for x, t in zip([3600, 60, 1], time[0].split(":")))
+	milliseconds = (float(time[1]) * 0.01)
+	return seconds + milliseconds
 
-# finds the first available filename given desired name and extension, appending a number at end of name until one doesn't exist
-def getAvailableFilename(filename, fileExt):
-	# todo: make it so if fileExt starts with a period, it strips it
+
+def get_available_filename(filename, file_ext):
+	"""Finds the first available filename given desired name and extension,
+	appending a number at the end of the name in sequential order until one
+	is found that doesn't exist
+	"""
+	# TODO: make it so if file_ext starts with a period, it strips it
 	num = 0
-	fileStr = filename
-	while(os.path.isfile('./' + fileStr + '.' + fileExt) == True): # loop until we find one that doesn't exist
+	out_filename = filename
+	while(os.path.isfile('./' + out_filename + '.' + file_ext) == True):
 		num += 1
-		fileStr = filename + str(num)
-	return fileStr
+		out_filename = filename + str(num)
+	return out_filename
 
-def isVideoFile(file):
+
+def is_video_file(file):
+	"""Checks to see if file ends with a valid video extension"""
 	return any(i for i in [(file[-4:] == str) for str in ['.mp4', '.avi']] if i != -1)
 
-# checks if filename is valid, returning a bool,str tuple of whether it's valid and if it's invalid, which character invalidates it
-def isValidFilename(filename):
-	invalidchars = ['/','\\','?','%','*',':','|','"','<','>']
-	for char in invalidchars:
+
+def is_valid_filename(filename):
+	"""Checks if filename is valid, returning a (bool,str) tuple of whether
+	it's valid, and if it's invalid, which character invalidates it
+	"""
+	invalid_chars = ['/','\\','?','%','*',':','|','"','<','>']
+	for char in invalid_chars:
 		if char in filename:
 			return False, char
 	return True, '_'
+
 
 _arnoldQuotes = [
 	'HASTA LA VISTA, CLIPPY',
 	'I NEED YOUR CLIPS, YOUR BOOTS, AND YOUR MOTORCYCLE',
 	'WHAT IS BEST IN LIFE? TO TAKE YOUR CLIPS, SEE THEM PROCESSED BEFORE '
 		'YOU, AND HEAR THE DEGENERATION OF YOUR VIDEOS',
-	'I HOPE YOU HAVE ENOUGH ROOM FOR MY CLIP BECAUSE I\'M GOING TO RAM IT INTO YOUR HARD DRIVE',
-	]
+	'I HOPE YOU HAVE ENOUGH ROOM FOR MY CLIP BECAUSE I\'M GOING TO RAM IT '
+		'INTO YOUR HARD DRIVE',
+
+]
 
 #print(os.getcwd()) #current working dir
 #import pdb; pdb.set_trace() #for debugging
+
 
 def main():
 	print(
@@ -144,66 +167,62 @@ def main():
 	)
 	
 	parser = create_parser()
-	outFileExt = 'mp4' # always export to .mp4
+	out_file_ext = 'mp4' # always export to .mp4
 
-	# check for ffmpeg in path
+	# Check for ffmpeg in path as it's required
 	env = os.environ['PATH']
 	if env.find('ffmpeg') == -1:
 		print('error: ffmpeg not found in path, aborting')
 		quit()
 
-	# check if there's any arguments
-	if len(sys.argv) < 2: # first arg is always the execution path
+	# Check for arguments (first sys.argv is always command executed)
+	if len(sys.argv) < 2:
 		parser.print_help()
 		quit()
 
 	args = parser.parse_args()
 
-	# check if the user included arguments to disable audio or compression
-	if args.na:
+	if args.noaudio:
 		print('disable audio flag found')
-	if args.nc:
+	if args.nocompress:
 		print('disable video compression flag found')
 
-	# if auto arg is set, go into auto mode and quit after it's done
+	# If auto arg is set, go into auto mode and quit after it's done
 	if(args.auto):
-		__autoMode(args, outFileExt)
+		__auto_mode(args, out_file_ext)
 		quit()
 
-	# find file from args
 	if args.file == None or os.path.isfile(args.file) == False:
 		print('error: file not found')
 		quit()
 
 	file = args.file
 
-	# check if file extension matches any from our known list of valid video formats to process
-	if not(isVideoFile(file)):
+	if not(is_video_file(file)):
 		print('error: file is not a valid video format, aborting')
 		quit()
 
-	inVideoLength = getLengthInSeconds(file);
+	in_video_length = get_length_in_seconds(file);
 
 	start = "" if args.start == None else args.start
 	end = "" if args.end == None else args.end
 
-	# prompt for a filename for the output video
+	# Prompt for a filename for the output video
 	name = ""
 	while(name == ""):
 		print('\nEnter clip name (without extension) (blank defaults "output"):')
 		name = input()
-		
 		if name == "":
-			name = getAvailableFilename('output', outFileExt)
+			name = get_available_filename('output', out_file_ext)
 			print('warning: no name entered, defaulting to "' + name + '"')
 		else:
 			# check if name has any invalid filename characters
-			valid, char = isValidFilename(name)
+			valid, char = is_valid_filename(name)
 			if not valid:
 				print("error: invalid character '" + char + "' entered in filename")
 				name = ""
 
-	# make sure we found a start time
+	# Make sure we found a start time
 	while(start == ""):
 		print('\nEnter start time (blank defaults to start of video):')
 		start = input()
@@ -213,71 +232,84 @@ def main():
 		elif not start.isdigit():
 			print('error: invalid start time')
 			start = ""
-		elif float(start) > inVideoLength:
+		elif float(start) > in_video_length:
 			print('error: start time is beyond video length')
 			start = ""
 
-	# make sure we found an end time
+	# Make sure we found an end time
 	while(end == ""):
 		print('\nEnter end time (blank defaults to end of video):')
 		end = input()
 		if end == "":
 			print('warning: no end time entered, using end of video')
-			end = inVideoLength
+			end = in_video_length
 		elif not end.isdigit():
 			print('error: invalid end time')
 			end = ""
-		elif float(end) > inVideoLength:
-			print('warning: end time entered is beyond video length, using end of video')
-			end = inVideoLength
+		elif float(end) > in_video_length:
+			print('warning: end time is beyond video length, using end of video')
+			end = in_video_length
 
 	print('\n')
 
-	__processVideo(file, outFileExt, start, end, args, name)
+	__process_video(file, out_file_ext, start, end, args, name)
 
 
-# runs ffmpeg subprocess with args on given file
-def __processVideo(file, ext, start, end, args, outFilename):
-	# build our list of arguments to send to ffmpeg
-	includeaudio = not args.na
-	compressvideo = not args.nc
+def __process_video(file, ext, start, end, args, out_filename):
+	"""Runs ffmpeg subprocess with args on given file"""
 	duration = float(end) - float(start)
 
-	input_args = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-ss', str(start), '-i', file]
-	vcodec_args = ['-c:v', 'h264', '-preset', 'fast', '-crf', '22'] if compressvideo else ['-c', 'copy', '-copyinkf'] #vcodec_args = ['-vcodec', 'h264']
-	acodec_args = ['-c:a', 'copy'] if includeaudio else ['-an']
-	output_args = ['-t', str(duration), outFilename+'.'+ext]
+	# Build our list of arguments to send to ffmpeg
+	input_args = ['ffmpeg', '-hide_banner','-loglevel', 'error',
+		'-ss', str(start), '-i', file]
+	compress_args = ['-c:v', 'h264', '-preset', 'fast', '-crf', '22']
+	nocompress_args = ['-c', 'copy', '-copyinkf']
+	vcodec_args = nocompress_args if args.nocompress else compress_args
+	acodec_args = ['-an'] if args.noaudio else ['-c:a', 'copy']
+	output_args = ['-t', str(duration), out_filename+'.'+ext]
+	ffmpeg_args = input_args + vcodec_args + acodec_args + output_args
 
-	print('processing clip "' + file + '" as "'+outFilename+'.'+ext+'", start:', start, 'end:', end, 'duration:', duration)
+	print('processing clip "' + file + '" as "'+out_filename+'.'+ext+'",'
+		  'start:', start, 'end:', end, 'duration:', duration)
+
 	starttime = time.time()
-
-	process = subprocess.Popen(input_args + vcodec_args + acodec_args + output_args, stdout=subprocess.PIPE)
+	process = subprocess.Popen(ffmpeg_args, stdout=subprocess.PIPE)
 	process.communicate()
-	exitcode = process.wait()
+	exit_code = process.wait()
+	time_delta = time.time() - starttime
 
-	timedelta = time.time() - starttime
-	print('finished processing video "'+outFilename+'" with exit code', exitcode, 'in %.3f'%(timedelta)+'s')
+	print('finished processing video "'+out_filename+'" with '
+		  'exit code', exit_code, 'in %.3f'%(time_delta)+'s')
 	return
 
-def __autoMode(args, ext):
-	# find all files that start with our auto syntax ("degen-##-##-") and end with valid video file type
-	print('automatic processing mode')
-	videoFiles = [file for file in os.listdir(os.getcwd()) if isVideoFile(file)]
 
-	# dict of filename:(starttime,endtime,outfilename)
-	filesToProcess = {}
-	for file in videoFiles:
+def __auto_mode(args, ext):
+	""" Find all files in local directory whose filenames start with a specific
+	string ("degen-##-##-") and end with a valid video type, and then process
+	the videos using any supplied optional arguments
+	"""
+	print('automatic processing mode')
+	video_files = [file for file in os.listdir(os.getcwd()) if is_video_file(file)]
+
+	# Create dict of {filename : (starttime, endtime, outfilename)}
+	files_to_process = {}
+	for file in video_files:
 		if file.startswith('degen-'):
 			split = file.split('-')
-			# todo: consider accounting (and test what happens) for filenames like "degen-10-12.mp4" or "degen-10-12-.mp4"
+			# TODO: consider accounting (and test what happens) for filenames
+			# like "degen-10-12.mp4" or "degen-10-12-.mp4"
 			if len(split) >= 4 and split[1].isdigit() and split[2].isdigit():
-				dashPositions = [pos for pos, char in enumerate(file) if char == '-'] # get indices of all dash characters in filename
-				sanitizedFile = file[dashPositions[2] + 1:] # filename stripped of auto mode text (using this instead of split[3] allows for hyphens in the filename)
-				print('found file: ' + sanitizedFile + ', start: ' + split[1] + ', end: ' + split[2])
-				filesToProcess[file] = split[1], split[2], sanitizedFile
+				# Get indices of all dash characters in filename
+				dash_pos = [pos for pos, char in enumerate(file) if char == '-']
+				# Filename stripped of auto mode text (using this instead
+				# of split[3] allows for hyphens in the filename)
+				sanitized_file = file[dash_pos[2] + 1:]
+				print('found file: ' + sanitized_file + ', '
+					  'start: ' + split[1] + ', end: ' + split[2])
+				files_to_process[file] = split[1], split[2], sanitized_file
 
-	for file, params in filesToProcess.items():
-		outName = params[2][:-4] + '_auto'
-		outExt = params[2][-3:]
-		outName = getAvailableFilename(outName, outExt)
-		__processVideo(file, ext, params[0], params[1], args, outName)
+	for file, params in files_to_process.items():
+		out_name = params[2][:-4] + '_auto'
+		out_ext = params[2][-3:]
+		out_name = get_available_filename(out_name, out_ext)
+		__process_video(file, ext, params[0], params[1], args, out_name)
