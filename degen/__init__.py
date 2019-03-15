@@ -109,17 +109,17 @@ def is_valid_filename(filename):
 	return True, '_'
 
 
-_arnold_quotes = [
+_ARNOLD_QUOTES = [
 	"HASTA LA VISTA, CLIPPY",
 	"I NEED YOUR CLIPS, YOUR BOOTS, AND YOUR MOTORCYCLE",
 	"WHAT IS BEST IN LIFE? TO TAKE YOUR CLIPS, SEE THEM PROCESSED BEFORE "
 		"YOU, AND HEAR THE DEGENERATION OF YOUR VIDEOS",
 	"I HOPE YOU HAVE ENOUGH ROOM FOR MY CLIP BECAUSE I'M GOING TO RAM IT "
 		"INTO YOUR HARD DRIVE",
-	"WHO IS YOUR CLIPPY, AND WHAT DOES HE DO"
-	"'YOU WERE GONNA PROCESS THAT CLIP?' - OF COURSE, I'M THE DEGENERATOR"
-	"COME WITH ME IF YOU WANT TO CLIP"
-	"DILLON! YOU SON OF A CLIP"
+	"WHO IS YOUR CLIPPY, AND WHAT DOES HE DO",
+	"'YOU WERE GONNA PROCESS THAT CLIP?' - OF COURSE, I'M THE DEGENERATOR",
+	"COME WITH ME IF YOU WANT TO CLIP",
+	"DILLON! YOU SON OF A CLIP",
 	"GET TO THE CLIPPA",
 	"YOUR CLIP IS DEGENERATED",
 	"GET YOUR CLIP TO MARS",
@@ -293,7 +293,7 @@ def __process_video(file, ext, start, end, args, out_filename):
 
 	print('finished processing video "{}" with exit code {} '
 		  'in {:.3f}s'.format(full_filename, exit_code, time_delta))
-	print(random.choice(_arnold_quotes))
+	print(random.choice(_ARNOLD_QUOTES))
 	return
 
 
