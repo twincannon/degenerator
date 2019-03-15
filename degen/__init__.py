@@ -186,6 +186,9 @@ def main():
 		print('error: ffmpeg not found in path, aborting')
 		quit()
 
+	#TODO: browse for ffmpeg if it doesnt exist
+	#TODO: safeguard against ffprobe too (though default to check same dir ffmpeg was found in)
+
 	# Check for arguments (first sys.argv is always command executed)
 	if len(sys.argv) < 2:
 		parser.print_help()
