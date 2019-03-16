@@ -181,7 +181,7 @@ def main():
 	out_file_ext = 'mp4' # always export to .mp4
 
 	# Check for ffmpeg in path as it's required
-	env = os.environ['PATH']
+	env = os.environ['PATH'].lower()
 	if env.find('ffmpeg') == -1:
 		print('error: ffmpeg not found in path, aborting')
 		quit()
