@@ -188,6 +188,9 @@ def main():
 
 	#TODO: browse for ffmpeg if it doesnt exist
 	#TODO: safeguard against ffprobe too (though default to check same dir ffmpeg was found in)
+	#TODO: add support for mm:ss format for start/end time
+	#TODO: make the ffmpeg error more descriptive
+	#FIXME: it lets me enter a >end of video time w/o printing warning
 
 	# Check for arguments (first sys.argv is always command executed)
 	if len(sys.argv) < 2:
