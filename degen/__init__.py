@@ -13,10 +13,12 @@ from argparse import ArgumentParser
 
 def create_parser():
 	"""Setup and return our ArgumentParser"""
-	parser = ArgumentParser(description = 'Usage: supply at least 1 argument '
+	parser = ArgumentParser(description = 'Supply at least 1 argument '
 		'of a video file in order to start processing. The first two integer '
 		'arguments found will be used as the clip start/end time from the '
-		'input video, though these parameters can also be set at runtime.'
+		'input video, though these parameters can also be set at runtime. '
+		'ffmpeg is required, which can be found here: '
+		'https://www.ffmpeg.org/download.html'
 	)
 	parser.add_argument(
 		'file',
@@ -63,7 +65,7 @@ def create_parser():
 
 def get_length_in_seconds(filename):
 	"""Run ffprobe subprocess and return length of video file"""
-	result = subprocess.Popen(['ffprobe', filename],
+	result = subprocess.Popen([_ffmpeg_path + 'ffprobe', filename],
 		stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
 	# Isolate "Duration" line from other lines
 	duration_line = [x for x in result.stdout.readlines() if "Duration".encode() in x]
@@ -109,6 +111,7 @@ def is_valid_filename(filename):
 	return True, '_'
 
 
+_OUT_FILE_EXT = 'mp4' # Always export to .mp4
 _ARNOLD_QUOTES = [
 	"HASTA LA VISTA, CLIPPY",
 	"I NEED YOUR CLIPS, YOUR BOOTS, AND YOUR MOTORCYCLE",
@@ -128,6 +131,8 @@ _ARNOLD_QUOTES = [
 	"CLIP IT, CLIP IT NOW!",
 	"I'LL BE CLIP",
 ]
+
+_ffmpeg_path = ''
 
 #print(os.getcwd()) #current working dir
 #import pdb; pdb.set_trace() #for debugging
@@ -178,24 +183,39 @@ def main():
 	)
 	
 	parser = create_parser()
-	out_file_ext = 'mp4' # always export to .mp4
-
-	# Check for ffmpeg in path as it's required
-	env = os.environ['PATH'].lower()
-	if env.find('ffmpeg') == -1:
-		print('error: ffmpeg not found in path, aborting')
-		quit()
-
-	#TODO: browse for ffmpeg if it doesnt exist
-	#TODO: safeguard against ffprobe too (though default to check same dir ffmpeg was found in)
-	#TODO: add support for mm:ss format for start/end time
-	#TODO: make the ffmpeg error more descriptive
-	#FIXME: it lets me enter a >end of video time w/o printing warning
 
 	# Check for arguments (first sys.argv is always command executed)
 	if len(sys.argv) < 2:
 		parser.print_help()
 		quit()
+
+	# Check for ffmpeg in path as it's required
+	env = os.environ['PATH'].lower()
+	if env.find('ffmpeg') == -1:
+		print('error: ffmpeg not found in environment PATH!\n'
+			  '       ffmpeg can be downloaded from: https://www.ffmpeg.org/download.html\n'
+			  '       enter file path to ffmpeg.exe here to try again:')
+		found_ffmpeg = False
+		while not found_ffmpeg:
+			# try to find it, return true if found file
+			# we'll need to pass this into subprocess rather than just 'ffmpeg'
+			# also we'll need to handle ffprobe as well
+			path = input().strip('"')
+			path_tests = [
+				path,
+				path + 'ffmpeg.exe',
+				path + '\\' + 'ffmpeg.exe',
+			]
+			foundpath = [x for x in path_tests if os.path.isfile(x)]
+			if len(foundpath) > 0:
+				# Sanitize and strip path for later use
+				_ffmpeg_path = foundpath[0].strip('"').rstrip('ffmpeg.exe')
+				break
+			print('\nffmpeg.exe not found. Enter file path to try again:')
+
+	#TODO: add support for mm:ss format for start/end time
+	#TODO: make the ffmpeg path thing save via ConfigParser
+	#FIXME: it lets me enter a >end of video time w/o printing warning
 
 	args = parser.parse_args()
 
@@ -206,7 +226,7 @@ def main():
 
 	# If auto arg is set, go into auto mode and quit after it's done
 	if(args.auto):
-		__auto_mode(args, out_file_ext)
+		__auto_mode(args, _OUT_FILE_EXT)
 		quit()
 
 	if args.file == None or os.path.isfile(args.file) == False:
@@ -230,7 +250,7 @@ def main():
 		print('\nEnter clip name (without extension) (blank defaults "output"):')
 		name = input()
 		if name == "":
-			name = get_available_filename('output', out_file_ext)
+			name = get_available_filename('output', _OUT_FILE_EXT)
 			print('warning: no name entered, defaulting to "' + name + '"')
 		else:
 			# check if name has any invalid filename characters
@@ -269,7 +289,7 @@ def main():
 
 	print('\n')
 
-	__process_video(file, out_file_ext, start, end, args, name)
+	__process_video(file, _OUT_FILE_EXT, start, end, args, name)
 
 
 def __process_video(file, ext, start, end, args, out_filename):
@@ -279,7 +299,7 @@ def __process_video(file, ext, start, end, args, out_filename):
 	full_filename = out_filename + '.' + ext
 
 	# Build our list of arguments to send to ffmpeg
-	input_args = ['ffmpeg', '-hide_banner','-loglevel', 'error',
+	input_args = [_ffmpeg_path + 'ffmpeg', '-hide_banner','-loglevel', 'error',
 		'-ss', str(start), '-i', file]
 	compress_args = ['-c:v', 'h264', '-preset', 'fast', '-crf', '22']
 	nocompress_args = ['-c', 'copy', '-copyinkf']
@@ -328,7 +348,7 @@ def __auto_mode(args, ext):
 				files_to_process[file] = split[1], split[2], sanitized_file
 
 	for file, params in files_to_process.items():
-		out_name = params[2][:-4] + '_auto'
+		out_name = params[2][:-4]
 		out_ext = params[2][-3:]
 		out_name = get_available_filename(out_name, out_ext)
 		__process_video(file, ext, params[0], params[1], args, out_name)
