@@ -110,6 +110,16 @@ def is_valid_filename(filename):
 			return False, char
 	return True, '_'
 
+def is_mmss_format(time_str):
+    try:
+        time.strptime(time_str, '%M:%S')
+        return True
+    except ValueError:
+        return False
+
+def convert_mmss_to_seconds(mm_ss_str):
+	return sum(x * int(t) for x, t in zip([60, 1], mm_ss_str.split(":")))
+
 
 _OUT_FILE_EXT = 'mp4' # Always export to .mp4
 _ARNOLD_QUOTES = [
@@ -189,7 +199,7 @@ def main():
 		parser.print_help()
 		quit()
 
-	# Check for ffmpeg in path as it's required
+	# Check for ffmpeg in path as it's required, or prompt to enter path
 	env = os.environ['PATH'].lower()
 	if env.find('ffmpeg') == -1:
 		print('error: ffmpeg not found in environment PATH!\n'
@@ -197,9 +207,6 @@ def main():
 			  '       enter file path to ffmpeg.exe here to try again:')
 		found_ffmpeg = False
 		while not found_ffmpeg:
-			# try to find it, return true if found file
-			# we'll need to pass this into subprocess rather than just 'ffmpeg'
-			# also we'll need to handle ffprobe as well
 			path = input().strip('"')
 			path_tests = [
 				path,
@@ -212,10 +219,6 @@ def main():
 				_ffmpeg_path = foundpath[0].strip('"').rstrip('ffmpeg.exe')
 				break
 			print('\nffmpeg.exe not found. Enter file path to try again:')
-
-	#TODO: add support for mm:ss format for start/end time
-	#TODO: make the ffmpeg path thing save via ConfigParser
-	#FIXME: it lets me enter a >end of video time w/o printing warning
 
 	args = parser.parse_args()
 
@@ -239,7 +242,7 @@ def main():
 		print('error: file is not a valid video format, aborting')
 		quit()
 
-	in_video_length = get_length_in_seconds(file);
+	in_video_length = get_length_in_seconds(file)
 
 	start = "" if args.start == None else args.start
 	end = "" if args.end == None else args.end
@@ -263,12 +266,15 @@ def main():
 	while(start == ""):
 		print('\nEnter start time (blank defaults to start of video):')
 		start = input()
-		if start == "":
+		if is_mmss_format(start):
+			start = convert_mmss_to_seconds(start)
+
+		if not str(start).isdigit():
+			print('error: invalid start time format, enter an integer or mm:ss')
+			start = ""
+		elif start == "":
 			print('warning: no start time entered, using start of video')
 			start = 0
-		elif not start.isdigit():
-			print('error: invalid start time')
-			start = ""
 		elif float(start) > in_video_length:
 			print('error: start time is beyond video length')
 			start = ""
@@ -277,25 +283,26 @@ def main():
 	while(end == ""):
 		print('\nEnter end time (blank defaults to end of video):')
 		end = input()
-		if end == "":
+		if is_mmss_format(end):
+			end = convert_mmss_to_seconds(end)
+
+		if not str(end).isdigit():
+			print('error: invalid end time format, enter an integer or mm:ss')
+			end = ""
+		elif end == "":
 			print('warning: no end time entered, using end of video')
 			end = in_video_length
-		elif not end.isdigit():
-			print('error: invalid end time')
-			end = ""
 		elif float(end) > in_video_length:
 			print('warning: end time is beyond video length, using end of video')
 			end = in_video_length
 
 	print('\n')
-
 	__process_video(file, _OUT_FILE_EXT, start, end, args, name)
 
 
 def __process_video(file, ext, start, end, args, out_filename):
 	"""Runs ffmpeg subprocess with args on given file"""
 	duration = float(end) - float(start)
-
 	full_filename = out_filename + '.' + ext
 
 	# Build our list of arguments to send to ffmpeg
@@ -309,7 +316,7 @@ def __process_video(file, ext, start, end, args, out_filename):
 	ffmpeg_args = input_args + vcodec_args + acodec_args + output_args
 
 	print('processing clip "{}" as "{}", start: {} end: {} '
-		  'duration: {}'.format(file, full_filename, start, end, duration))
+		  'duration: {:.3f}'.format(file, full_filename, start, end, duration))
 
 	starttime = time.time()
 	process = subprocess.Popen(ffmpeg_args, stdout=subprocess.PIPE)
@@ -318,7 +325,7 @@ def __process_video(file, ext, start, end, args, out_filename):
 	time_delta = time.time() - starttime
 
 	print('finished processing video "{}" with exit code {} '
-		  'in {:.3f}s'.format(full_filename, exit_code, time_delta))
+		  'in {:.1f}s'.format(full_filename, exit_code, time_delta))
 	print(random.choice(_ARNOLD_QUOTES))
 	return
 
