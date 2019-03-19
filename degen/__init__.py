@@ -4,6 +4,7 @@ import subprocess
 import os
 import time
 import random
+import re
 from argparse import ArgumentParser
 
 
@@ -30,13 +31,13 @@ def create_parser():
 		'start',
 		type = int,
 		nargs = '?',
-		help = 'Start time in video to clip (optional)'
+		help = 'Start time in video to clip (optional, supports #:##)'
 	)
 	parser.add_argument(
 		'end',
 		type = int,
 		nargs = '?',
-		help = 'End time in video to clip (optional)'
+		help = 'End time in video to clip (optional, supports #:##)'
 	)
 	parser.add_argument(
 		'-noaudio',
@@ -58,7 +59,7 @@ def create_parser():
 		help = "Automatic mode (look for and process clips based on filename, "
 			   "i.e. 'degen-11-20-vidname.mp4' would try to find and process "
 			   "'vidname.mp4' with a start time of 11 and end time of 20, and "
-			   "output 'vidname_auto.mp4')"
+			   "output 'vidname_auto.mp4' - also supports '1m30s' formatting)"
 	)
 	return parser
 
@@ -111,13 +112,15 @@ def is_valid_filename(filename):
 	return True, '_'
 
 def is_mmss_format(time_str):
-    try:
-        time.strptime(time_str, '%M:%S')
-        return True
-    except ValueError:
-        return False
+	"""Checks if string satisfies 'mm:ss' time format"""
+	try:
+		time.strptime(time_str, '%M:%S')
+		return True
+	except ValueError:
+		return False
 
 def convert_mmss_to_seconds(mm_ss_str):
+	"""Converts a 'mm:ss' string to seconds"""
 	return sum(x * int(t) for x, t in zip([60, 1], mm_ss_str.split(":")))
 
 
@@ -296,7 +299,7 @@ def main():
 			print('warning: end time is beyond video length, using end of video')
 			end = in_video_length
 
-	print('\n')
+	print()
 	__process_video(file, _OUT_FILE_EXT, start, end, args, name)
 
 
@@ -335,7 +338,7 @@ def __auto_mode(args, ext):
 	string ("degen-##-##-") and end with a valid video type, and then process
 	the videos using any supplied optional arguments
 	"""
-	print('automatic processing mode')
+	print('* automatic processing mode *\n')
 	video_files = [file for file in os.listdir(os.getcwd()) if is_video_file(file)]
 
 	# Create dict of {filename : (starttime, endtime, outfilename)}
@@ -343,19 +346,42 @@ def __auto_mode(args, ext):
 	for file in video_files:
 		if file.startswith('degen-'):
 			# Split file str into parts and account for weird dash usage
-			split = [str for str  in file.split('-') if len(str) > 0]
-			if len(split) >= 4 and split[1].isdigit() and split[2].isdigit():
+			splitstr = [str for str  in file.split('-') if len(str) > 0]
+			start = splitstr[1].rstrip('s')
+			end = splitstr[2].rstrip('s')
+
+			# Support '1m30s' text format in the start/end portions
+			if re.match("^[0-9]+m\d{2}(?:s)?$", start):
+				temp = start.rstrip('s').split('m')
+				start = str(convert_mmss_to_seconds(temp[0]+':'+temp[1]))
+			if re.match("^[0-9]+m\d{2}(?:s)?$", end):
+				temp = end.rstrip('s').split('m')
+				end = str(convert_mmss_to_seconds(temp[0]+':'+temp[1]))
+
+			duration = get_length_in_seconds(file)
+			if float(start) > duration:
+				print('processing of {} failed: start time {} > duration {}'
+					  .format(file, start, duration))
+				continue
+			elif start > end:
+				print('processing of {} failed: start time {} > end time {}'
+					  .format(file, start, end))
+				continue
+
+			if len(splitstr) >= 4 and start.isdigit() and end.isdigit():
 				# Get indices of all dash characters in filename
 				dash_pos = [pos for pos, char in enumerate(file) if char == '-']
 				# Filename stripped of auto mode text (using this instead
-				# of split[3] allows for hyphens in the filename)
+				# of splitstr[3] allows for hyphens in the filename)
 				sanitized_file = file[dash_pos[2] + 1:]
 				print('found file: {}, start: {}, '
-					  'end: {}'.format(sanitized_file, split[1], split[2]))
-				files_to_process[file] = split[1], split[2], sanitized_file
+					  'end: {}'.format(sanitized_file, start, end))
+				files_to_process[file] = start, end, sanitized_file
+	print()
 
 	for file, params in files_to_process.items():
 		out_name = params[2][:-4]
 		out_ext = params[2][-3:]
 		out_name = get_available_filename(out_name, out_ext)
 		__process_video(file, ext, params[0], params[1], args, out_name)
+		print()
