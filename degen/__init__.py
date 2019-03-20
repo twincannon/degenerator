@@ -14,10 +14,12 @@ from argparse import ArgumentParser
 
 def create_parser():
 	"""Setup and return our ArgumentParser"""
-	parser = ArgumentParser(description = 'Supply at least 1 argument '
-		'of a video file in order to start processing. The first two integer '
-		'arguments found will be used as the clip start/end time from the '
-		'input video, though these parameters can also be set at runtime. '
+	parser = ArgumentParser(description = 'The degenerator is a command line '
+		'helper that interfaces with ffmpeg to process videos to .mp4 format '
+		'for easy upload to platforms like YouTube.\n\n Supply at least 1 '
+		'argument of a video file in order to start processing. The second '
+		'third arguments found will be used as the clip start/end time from '
+		'the input video, though these parameters can also be set at runtime. '
 		'ffmpeg is required, which can be found here: '
 		'https://www.ffmpeg.org/download.html'
 	)
@@ -29,15 +31,16 @@ def create_parser():
 	)
 	parser.add_argument(
 		'start',
-		type = int,
+		type = str,
 		nargs = '?',
-		help = 'Start time in video to clip (optional, supports #:##)'
+		help = 'Start time in video to clip (optional, supports formatting '
+			   'such as "45" or "1:15" or "1m15s")'
 	)
 	parser.add_argument(
 		'end',
-		type = int,
+		type = str,
 		nargs = '?',
-		help = 'End time in video to clip (optional, supports #:##)'
+		help = 'End time in video to clip (optional, see above)'
 	)
 	parser.add_argument(
 		'-noaudio',
@@ -111,6 +114,7 @@ def is_valid_filename(filename):
 			return False, char
 	return True, '_'
 
+
 def is_mmss_format(time_str):
 	"""Checks if string satisfies 'mm:ss' time format"""
 	try:
@@ -119,9 +123,21 @@ def is_mmss_format(time_str):
 	except ValueError:
 		return False
 
+
 def convert_mmss_to_seconds(mm_ss_str):
-	"""Converts a 'mm:ss' string to seconds"""
-	return sum(x * int(t) for x, t in zip([60, 1], mm_ss_str.split(":")))
+	"""Converts a string such as 'mm:ss' or '1m30s' returns seconds (integer),
+	returns None if failed to convert string. Returns a digit directly.
+	"""
+	mslist = re.split('m|:', mm_ss_str.lower().rstrip('s'))
+
+	# Handle single numbers by just returning them
+	if len(mslist) == 1:
+		return mslist[0] if mslist[0].isdigit() else None
+
+	if len(mslist) != 2 or not mslist[0].isdigit() or not mslist[1].isdigit():
+		return
+
+	return sum(x * int(t) for x, t in zip([60, 1], mslist))
 
 
 _OUT_FILE_EXT = 'mp4' # Always export to .mp4
@@ -247,8 +263,8 @@ def main():
 
 	in_video_length = get_length_in_seconds(file)
 
-	start = "" if args.start == None else args.start
-	end = "" if args.end == None else args.end
+	start = None if args.start == None else convert_mmss_to_seconds(args.start)
+	end = None if args.end == None else convert_mmss_to_seconds(args.end)
 
 	# Prompt for a filename for the output video
 	name = ""
@@ -266,34 +282,24 @@ def main():
 				name = ""
 
 	# Make sure we found a start time
-	while(start == ""):
+	while(start == None):
 		print('\nEnter start time (blank defaults to start of video):')
-		start = input()
-		if is_mmss_format(start):
-			start = convert_mmss_to_seconds(start)
-
-		if not str(start).isdigit():
-			print('error: invalid start time format, enter an integer or mm:ss')
-			start = ""
-		elif start == "":
-			print('warning: no start time entered, using start of video')
+		start = convert_mmss_to_seconds(input())
+		
+		if start == None:
+			print('warning: invalid start time entered, using start of video')
 			start = 0
 		elif float(start) > in_video_length:
-			print('error: start time is beyond video length')
-			start = ""
+			print('error: start time is beyond video length ({:.2f})'.format(in_video_length))
+			start = None
 
 	# Make sure we found an end time
-	while(end == ""):
+	while(end == None):
 		print('\nEnter end time (blank defaults to end of video):')
-		end = input()
-		if is_mmss_format(end):
-			end = convert_mmss_to_seconds(end)
+		end = convert_mmss_to_seconds(input())
 
-		if not str(end).isdigit():
-			print('error: invalid end time format, enter an integer or mm:ss')
-			end = ""
-		elif end == "":
-			print('warning: no end time entered, using end of video')
+		if end == None:
+			print('warning: invalid end time entered, using end of video')
 			end = in_video_length
 		elif float(end) > in_video_length:
 			print('warning: end time is beyond video length, using end of video')
